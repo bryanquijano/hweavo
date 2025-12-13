@@ -41,7 +41,12 @@
                         </svg>
                     </button>
                 </div>
-                
+
+                <div id="d-user-dates" class="user-dates hidden">
+                    <input type="text" id="d-started-input" class="date-input" placeholder="Started: MM-DD-YYYY">
+                    <input type="text" id="d-finished-input" class="date-input" placeholder="Finished: MM-DD-YYYY">
+                </div>
+
                 <div class="personal-rating-section">
                     <h4>Your Rating</h4>
                     <div class="static-stars interactive" id="d-user-stars"></div>
@@ -53,14 +58,20 @@
                     <div class="meta-item"><strong>Published</strong><span id="d-published"></span></div>
                     <div class="meta-item"><strong>ISBN</strong><span id="d-isbn"></span></div>
                 </div>
+
+                <div id="d-breakdown-container" class="breakdown-section hidden">
+                    <h5>Rating Breakdown</h5>
+                    <div id="d-breakdown-chart" class="breakdown-chart"></div>
+                </div>
             </aside>
 
             <section class="details-main">
 
                 <header class="book-header">
-                    <div class="series-badge hidden" id="d-series-badge"></div>
+                    <div class="series-badge hidden clickable-link" id="d-series-badge"></div>
                     <h1 id="d-title">Title</h1>
-                    <h3 id="d-authors">Author</h3>
+                    <div id="d-authors-container">
+                        <h3 id="d-authors-list"></h3></div>
                     <div class="gr-stats">
                         <span class="score-badge">★ <span id="d-gr-score"></span></span>
                         <span class="meta-sep">•</span>
@@ -74,7 +85,10 @@
 
                 <div class="section-block">
                     <h3>Synopsis</h3>
-                    <div id="d-synopsis" class="text-block"></div>
+                    <div class="synopsis-container">
+                        <div id="d-synopsis" class="text-block synopsis-clamp"></div>
+                        <button id="toggle-synopsis-btn" class="hidden">Show more</button>
+                    </div>
                 </div>
 
                 <div class="section-block hidden" id="sg-ai-block">
@@ -87,18 +101,19 @@
                         <h4>Moods</h4>
                         <div id="d-moods" class="moods-container-row"></div>
                     </div>
-                
+
                     <div class="stat-card full-width">
                         <h4>StoryGraph Scales</h4>
-                        <div id="d-scales-container" class="scales-wrapper">
-                        </div>
+                        <div id="d-scales-container" class="scales-wrapper"></div>
+                        <div id="d-scales-extra" class="scales-wrapper hidden" style="margin-top: 2rem;"></div>
+                        <button id="toggle-scales-btn" class="btn small hidden">Show All Scales</button>
                     </div>
-                
+
                     <div class="stat-card full-width">
                         <h4>Content Warnings</h4>
                         <div id="d-warnings-preview" class="warnings-preview"></div>
-                        <button id="view-all-warnings-btn" class="btn secondary small hidden" style="margin-top:1rem;">View Full
-                            Warnings</button>
+                        <button id="view-all-warnings-btn" class="btn secondary small hidden"
+                            style="margin-top:1rem;">View Full Warnings</button>
                     </div>
                 </div>
 
@@ -118,8 +133,31 @@
                 <button class="close-modal" id="close-warnings-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="full-warnings-list" class="full-warnings-container">
-                </div>
+                <div id="full-warnings-list" class="full-warnings-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="series-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="series-modal-title">Series Books</h3>
+                <button class="close-modal" id="close-series-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="series-list" class="modal-book-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="author-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="author-modal-title">Author's Books</h3>
+                <button class="close-modal" id="close-author-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="author-list" class="modal-book-list"></div>
             </div>
         </div>
     </div>

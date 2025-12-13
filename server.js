@@ -150,15 +150,12 @@ app.post("/download-cover", (req, res) => {
 
 // 4. SAVE NEW BOOK
 app.post("/save-book", async (req, res) => {
-    const bookData = req.body;
+    const { goodreads, storygraph, user, cover, downloadCover } = req.body;
     const bookId = crypto.randomUUID();
-    let finalCoverPath = bookData.cover;
+    let finalCoverPath = cover;
 
-    if (
-        bookData.downloadCover &&
-        bookData.cover &&
-        bookData.cover.startsWith("http")
-    ) {
+    // Handle "Download Local" Logic
+    if (downloadCover && cover && cover.startsWith("http")) {
         try {
             const filename = `cover-${Date.now()}-${crypto
                 .randomBytes(4)
@@ -170,26 +167,38 @@ app.post("/save-book", async (req, res) => {
                 "covers",
                 filename
             );
-            await downloadImage(bookData.cover, localPath);
+            await downloadImage(cover, localPath);
             finalCoverPath = `/assets/covers/${filename}`;
         } catch (err) {
             console.error("Cover download failed", err);
         }
     }
 
+    // Create entry for books.jsonl (Shared Data)
     const newEntry = {
         id: bookId,
         addedAt: new Date().toISOString(),
         cover: finalCoverPath,
-        goodreads: bookData.goodreads || {},
-        storygraph: bookData.storygraph || {},
+        goodreads: goodreads || {},
+        storygraph: storygraph || {},
     };
 
+    // Save to books.jsonl
     fs.appendFile(
         path.join(__dirname, "data", "books.jsonl"),
         JSON.stringify(newEntry) + "\n",
         (err) => {
             if (err) return res.status(500).json({ success: false });
+
+            // NEW: Save Initial User Data (Status & Dates) to user.json
+            if (user) {
+                updateUserEntry(bookId, (entry) => {
+                    entry.status = user.status || "Want to Read";
+                    if (user.started) entry.started = user.started;
+                    if (user.finished) entry.finished = user.finished;
+                });
+            }
+
             res.json({
                 success: true,
                 id: bookId,
@@ -201,10 +210,17 @@ app.post("/save-book", async (req, res) => {
 });
 
 // 5. USER ACTIONS (Score, Status, Favorite, Delete)
+app.post("/save-dates", (req, res) => {
+    const { bookId, started, finished } = req.body;
+    updateUserEntry(bookId, (entry) => {
+        if (started !== undefined) entry.started = started;
+        if (finished !== undefined) entry.finished = finished;
+    });
+    res.json({ success: true });
+});
 
 function updateUserEntry(bookId, callback) {
-    const data = getUserData();
-    // Normalize key to 'library'
+    const data = JSON.parse(fs.readFileSync(userJsonPath, "utf-8"));
     if (!data.library) {
         data.library = data.scores || [];
         delete data.scores;
@@ -213,13 +229,12 @@ function updateUserEntry(bookId, callback) {
     let entryIndex = data.library.findIndex((s) => s.bookId === bookId);
     let entry = entryIndex > -1 ? data.library[entryIndex] : { bookId };
 
-    // Run specific update logic
     callback(entry);
 
     if (entryIndex > -1) data.library[entryIndex] = entry;
     else data.library.push(entry);
 
-    saveUserData(data);
+    fs.writeFileSync(userJsonPath, JSON.stringify(data, null, 2));
 }
 
 app.post("/save-score", (req, res) => {

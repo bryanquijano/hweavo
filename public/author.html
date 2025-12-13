@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Author Catalog</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <nav>
+        <div class="logo"><a href="index.html" style="text-decoration:none; color:inherit;">BookTracker</a></div>
+        <div class="nav-links">
+            <a href="index.html" class="btn secondary">Back to Home</a>
+        </div>
+    </nav>
+
+    <main class="author-container">
+        <div id="loading" style="text-align:center; padding: 3rem;">Loading author data...</div>
+
+        <div id="author-content" class="hidden">
+            <header class="author-header">
+                <h1 id="a-name">Author Name</h1>
+                <div class="author-stats">
+                    <span id="a-total-books">0 Books</span> •
+                    <span id="a-avg-score">0.0 Avg Rating</span>
+                </div>
+            </header>
+
+            <div id="author-catalog">
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="author.js"></script>
+</body>
+
+</html>

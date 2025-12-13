@@ -19,7 +19,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderDetails(book);
     setupInteractiveControls(bookId, book);
+    setupModalsAndToggles(book);
 });
+
+// Helper: Format Number
+const formatNum = (num) => {
+    if (!num) return "0";
+    const clean = String(num).replace(/,/g, "");
+    return parseInt(clean).toLocaleString();
+};
 
 function renderDetails(book) {
     const g = book.goodreads;
@@ -28,37 +36,62 @@ function renderDetails(book) {
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("details-content").classList.remove("hidden");
 
-    // --- Sidebar & Header ---
+    // --- Sidebar ---
     document.getElementById("d-cover").src =
         book.cover || "assets/placeholder.jpg";
+
+    const pageCount = g.pageCount ? formatNum(g.pageCount) : "?";
     document.getElementById("d-format").innerText = `${
         g.style || "Format Unknown"
-    }, ${g.pageCount || "?"} pages`;
+    }, ${pageCount} pages`;
     document.getElementById("d-published").innerText =
         g.firstPublished || "Unknown";
     document.getElementById("d-isbn").innerText =
         g.isbn || g.isbn10 || g.asin || "N/A";
 
-    // Status & Fav (Initial State)
-    document.getElementById("d-status-select").value =
-        book.userStatus || "Want to Read";
-    const favBtn = document.getElementById("d-fav-btn");
-    if (book.isFavorite) favBtn.classList.add("active");
-
-    // Rating (Initial Render)
     const userScore = book.userScore || 0;
     document.getElementById("d-user-score-text").innerText =
         userScore > 0 ? userScore + "/5" : "Not Rated";
     renderInteractiveStars(userScore, document.getElementById("d-user-stars"));
 
-    // Header Data
+    // Dates
+    const dateContainer = document.getElementById("d-user-dates");
+    const status = book.userStatus || "Want to Read";
+    document.getElementById("d-status-select").value = status;
+    const startInput = document.getElementById("d-started-input");
+    const finishInput = document.getElementById("d-finished-input");
+    if (book.started) startInput.value = book.started;
+    if (book.finished) finishInput.value = book.finished;
+    const shouldShowDates =
+        book.started ||
+        book.finished ||
+        ["Reading", "Finished", "Dropped"].includes(status);
+    if (shouldShowDates) dateContainer.classList.remove("hidden");
+
+    const favBtn = document.getElementById("d-fav-btn");
+    if (book.isFavorite) favBtn.classList.add("active");
+
+    // --- Header ---
     document.getElementById("d-title").innerText = g.title;
-    document.getElementById("d-authors").innerText = g.authors
-        ? g.authors.join(", ")
-        : "Unknown";
+
+    // FIX: Render authors as individual clickable spans
+    const authorsDiv = document.getElementById("d-authors-list");
+    if (g.authors && g.authors.length > 0) {
+        authorsDiv.innerHTML = g.authors
+            .map((author) => {
+                // Display name strips the parenthetical info
+                const displayAuthor = author.replace(/\s+\(.*?\)/, "").trim();
+                // Full name (with parenthetical) is used for searching
+                return `<span class="author-link clickable-link" data-author-name="${author.trim()}">${displayAuthor}</span>`;
+            })
+            .join(" • "); // Use a separator between authors
+    } else {
+        authorsDiv.innerText = "Unknown";
+    }
+
     document.getElementById("d-gr-score").innerText = g.score || "-";
-    document.getElementById("d-gr-ratings").innerText = g.ratings || "0";
-    document.getElementById("d-gr-reviews").innerText = g.reviews || "0";
+    document.getElementById("d-gr-ratings").innerText = formatNum(g.ratings);
+    document.getElementById("d-gr-reviews").innerText = formatNum(g.reviews);
 
     if (g.isSeries && g.seriesName) {
         const badge = document.getElementById("d-series-badge");
@@ -66,16 +99,18 @@ function renderDetails(book) {
         badge.classList.remove("hidden");
     }
 
-    // --- Content (Genres, Synopsis, etc.) ---
     if (g.genres)
         document.getElementById("d-genres").innerHTML = g.genres
             .slice(0, 5)
             .map((gen) => `<span class="genre-tag">${gen}</span>`)
             .join("");
+
+    // --- Synopsis (Render & Check length later in setupModals) ---
     if (g.synopsis)
         document.getElementById("d-synopsis").innerHTML = g.synopsis
             .map((p) => `<p>${p}</p>`)
             .join("");
+
     if (s.aiSummary && s.aiSummary.length > 0) {
         document.getElementById("sg-ai-block").classList.remove("hidden");
         document.getElementById("d-ai-summary").innerHTML = s.aiSummary
@@ -83,7 +118,8 @@ function renderDetails(book) {
             .join("");
     }
 
-    // --- Stats Grid ---
+    if (g.detailedScore) renderScoreBreakdown(g.detailedScore);
+
     const moodsDiv = document.getElementById("d-moods");
     if (s.moods && s.moods.length > 0) {
         moodsDiv.innerHTML = s.moods
@@ -99,7 +135,7 @@ function renderDetails(book) {
     if (s.scales) renderScales(s.scales);
     renderContentWarnings(s.warnings);
 
-    // Advanced
+    // Advanced Metadata
     const advDiv = document.getElementById("d-advanced-content");
     let advHtml = "";
     if (g.awards && g.awards.length)
@@ -115,110 +151,174 @@ function renderDetails(book) {
     advDiv.innerHTML = advHtml || "No extra metadata.";
 }
 
-// --- CONTROLS LOGIC ---
-function setupInteractiveControls(bookId, book) {
-    // 1. Status Change
-    const statusSelect = document.getElementById("d-status-select");
-    statusSelect.addEventListener("change", async (e) => {
-        const val = e.target.value;
-        if (val === "Delete") {
-            if (
-                confirm(
-                    "Are you sure you want to delete this book? This cannot be undone."
-                )
-            ) {
-                const res = await API.deleteBook(bookId);
-                if (res.success) window.location.href = "index.html";
-                else alert("Failed to delete book.");
+// --- NEW FUNCTIONALITY ---
+function setupModalsAndToggles(book) {
+    const g = book.goodreads;
+
+    // 1. SYNOPSIS TOGGLE
+    const synText = document.getElementById("d-synopsis");
+    const synBtn = document.getElementById("toggle-synopsis-btn");
+
+    const textLen = g.synopsis ? g.synopsis.join(" ").length : 0;
+
+    if (textLen > 400) {
+        synBtn.classList.remove("hidden");
+        synBtn.onclick = () => {
+            if (synText.classList.contains("synopsis-clamp")) {
+                synText.classList.remove("synopsis-clamp");
+                synBtn.innerText = "Show less";
             } else {
-                // Revert selection
-                e.target.value = book.userStatus || "Want to Read";
+                synText.classList.add("synopsis-clamp");
+                synBtn.innerText = "Show more";
             }
-        } else {
-            // Save Status
-            await API.saveUserStatus(bookId, val);
-            book.userStatus = val; // Update local state
-        }
-    });
-
-    // 2. Favorite Toggle
-    const favBtn = document.getElementById("d-fav-btn");
-    favBtn.addEventListener("click", async () => {
-        const res = await API.toggleFavorite(bookId);
-        if (res.success) {
-            favBtn.classList.toggle("active", res.isFavorite);
-        }
-    });
-
-    // 3. Interactive Stars
-    const starsContainer = document.getElementById("d-user-stars");
-    let currentRating = book.userScore || 0;
-
-    starsContainer.addEventListener("mousemove", (e) => {
-        const star = e.target;
-        if (!star.classList.contains("star")) return;
-        const stars = Array.from(starsContainer.querySelectorAll(".star"));
-        const index = stars.indexOf(star);
-        const rect = star.getBoundingClientRect();
-        const isLeft = e.clientX - rect.left < rect.width / 2;
-        const hoverVal = isLeft ? index + 0.5 : index + 1;
-
-        renderInteractiveStars(hoverVal, starsContainer);
-        document.getElementById("d-user-score-text").innerText =
-            hoverVal.toFixed(1);
-    });
-
-    starsContainer.addEventListener("mouseleave", () => {
-        renderInteractiveStars(currentRating, starsContainer);
-        document.getElementById("d-user-score-text").innerText =
-            currentRating > 0 ? currentRating.toFixed(1) + "/5" : "Not Rated";
-    });
-
-    starsContainer.addEventListener("click", async (e) => {
-        const star = e.target;
-        if (!star.classList.contains("star")) return;
-        const stars = Array.from(starsContainer.querySelectorAll(".star"));
-        const index = stars.indexOf(star);
-        const rect = star.getBoundingClientRect();
-        const isLeft = e.clientX - rect.left < rect.width / 2;
-
-        currentRating = isLeft ? index + 0.5 : index + 1;
-
-        // Save Score
-        await API.saveUserScore(bookId, currentRating);
-
-        // Auto-update status to "Finished" in UI if previously "Want to Read"
-        if (statusSelect.value === "Want to Read") {
-            statusSelect.value = "Finished";
-            // Backend handles the actual status update logic in save-score too, but UI needs visual update
-        }
-
-        renderInteractiveStars(currentRating, starsContainer);
-        document.getElementById("d-user-score-text").innerText =
-            currentRating + "/5";
-    });
-}
-
-// --- VISUALIZATION HELPERS ---
-
-function renderInteractiveStars(score, container) {
-    let html = "";
-    for (let i = 1; i <= 5; i++) {
-        if (score >= i) html += '<span class="star filled">★</span>';
-        else if (score >= i - 0.5)
-            html += '<span class="star half-filled">★</span>';
-        else html += '<span class="star">★</span>';
+        };
     }
-    container.innerHTML = html;
+
+    // 2. SERIES MODAL
+    const seriesBadge = document.getElementById("d-series-badge");
+    const seriesModal = document.getElementById("series-modal-backdrop");
+    const closeSeries = document.getElementById("close-series-modal");
+
+    if (g.isSeries && g.seriesName) {
+        seriesBadge.onclick = async () => {
+            const allBooks = await API.getBooks();
+            // Filter: Matches series name
+            const seriesBooks = allBooks
+                .filter(
+                    (b) =>
+                        b.goodreads.isSeries &&
+                        b.goodreads.seriesName === g.seriesName
+                )
+                .sort((a, b) => {
+                    // Sort by series number
+                    return (
+                        parseFloat(a.goodreads.seriesNum) -
+                        parseFloat(b.goodreads.seriesNum)
+                    );
+                });
+
+            renderBookList(document.getElementById("series-list"), seriesBooks);
+            document.getElementById(
+                "series-modal-title"
+            ).innerText = `Series: ${g.seriesName}`;
+            seriesModal.classList.remove("hidden");
+        };
+    }
+    closeSeries.onclick = () => seriesModal.classList.add("hidden");
+
+    // 3. AUTHOR MODAL (FIXED & PAGINATED)
+    const authorModal = document.getElementById("author-modal-backdrop");
+    const closeAuthor = document.getElementById("close-author-modal");
+
+    document
+        .getElementById("d-authors-list")
+        .addEventListener("click", async (e) => {
+            const authorLink = e.target.closest(".author-link");
+            if (!authorLink) return;
+
+            // Get the full author name from the data attribute
+            const clickedAuthor = authorLink.dataset.authorName;
+            // Clean name for display title
+            const displayTitle = clickedAuthor.replace(/\s+\(.*?\)/, "").trim();
+
+            const allBooks = await API.getBooks();
+
+            // Filter books
+            let authorBooks = allBooks.filter(
+                (b) =>
+                    b.goodreads.authors &&
+                    b.goodreads.authors.includes(clickedAuthor)
+            );
+
+            // 1. Sort by Highest Rated (Desc)
+            authorBooks.sort(
+                (a, b) =>
+                    parseFloat(b.goodreads.score) -
+                    parseFloat(a.goodreads.score)
+            );
+
+            // 2. Slice Top 5
+            const topBooks = authorBooks.slice(0, 5);
+
+            // 3. Render List
+            const listContainer = document.getElementById("author-list");
+            renderBookList(listContainer, topBooks);
+
+            document.getElementById(
+                "author-modal-title"
+            ).innerText = `Top Rated by ${displayTitle}`;
+
+            // 4. Add "View All" Button logic
+            // Remove existing button if any to avoid duplicates
+            const existingBtn = document.getElementById("author-view-all-btn");
+            if (existingBtn) existingBtn.remove();
+
+            if (authorBooks.length > 5) {
+                const viewAllBtn = document.createElement("button");
+                viewAllBtn.id = "author-view-all-btn";
+                viewAllBtn.className = "btn primary full-width";
+                viewAllBtn.style.marginTop = "1rem";
+                viewAllBtn.innerText = `View All ${authorBooks.length} Books`;
+                viewAllBtn.onclick = () => {
+                    // Pass raw string for filter
+                    window.location.href = `author.html?name=${encodeURIComponent(
+                        clickedAuthor
+                    )}`;
+                };
+                // Append after the list inside modal-body
+                listContainer.parentNode.appendChild(viewAllBtn);
+            }
+
+            authorModal.classList.remove("hidden");
+        });
+
+    closeAuthor.onclick = () => authorModal.classList.add("hidden");
+
+    // Close on backdrop click
+    window.onclick = (e) => {
+        if (e.target === seriesModal) seriesModal.classList.add("hidden");
+        if (e.target === authorModal) authorModal.classList.add("hidden");
+    };
 }
 
+function renderBookList(container, books) {
+    container.innerHTML = "";
+    if (books.length === 0) {
+        container.innerHTML = "<p class='text-muted'>No books found.</p>";
+        return;
+    }
+
+    books.forEach((b) => {
+        const div = document.createElement("div");
+        div.className = "modal-book-item";
+        div.innerHTML = `
+            <img src="${b.cover || "assets/placeholder.jpg"}">
+            <div class="modal-book-info">
+                <h4>${b.goodreads.title}</h4>
+                <p>${
+                    b.goodreads.isSeries
+                        ? `#${b.goodreads.seriesNum} in ${b.goodreads.seriesName}`
+                        : b.goodreads.firstPublished
+                }</p>
+            </div>
+        `;
+        div.onclick = () => (window.location.href = `details.html?id=${b.id}`);
+        container.appendChild(div);
+    });
+}
+
+// --- SCALES RENDERER UPDATED (Split logic) ---
 function renderScales(scales) {
     const container = document.getElementById("d-scales-container");
+    const extraContainer = document.getElementById("d-scales-extra");
+    const toggleBtn = document.getElementById("toggle-scales-btn");
+
     container.innerHTML = "";
+    extraContainer.innerHTML = "";
 
     if (!scales) return;
 
-    // Helper Configs
+    // Helper Configs (omitted for brevity, assume they are defined)
     const paceConfig = [
         { key: "fast", color: "bg-orange", label: "Fast" },
         { key: "medium", color: "bg-pink", label: "Medium" },
@@ -243,6 +343,7 @@ function renderScales(scales) {
         { key: "na", color: "bg-na", label: "N/A", textDark: true },
     ];
 
+    // Main Scales (Visible)
     container.appendChild(createScaleBlock("Pace", scales.pace, paceConfig));
     container.appendChild(
         createScaleBlock(
@@ -258,23 +359,131 @@ function renderScales(scales) {
             binaryConfig
         )
     );
-    container.appendChild(
+
+    // Extra Scales (Hidden)
+    extraContainer.appendChild(
         createScaleBlock("Loveable Characters?", scales.loveable, binaryConfig)
     );
-    container.appendChild(
+    extraContainer.appendChild(
         createScaleBlock(
             "Diverse Cast of Characters?",
             scales.diversity,
             binaryConfig
         )
     );
-    container.appendChild(
+    extraContainer.appendChild(
         createScaleBlock(
             "Flaws of Characters a Main Focus?",
             scales.flaws,
             binaryConfig
         )
     );
+
+    // Toggle Button Logic
+    toggleBtn.classList.remove("hidden");
+    toggleBtn.innerText = "Show All Scales";
+    toggleBtn.onclick = () => {
+        if (extraContainer.classList.contains("hidden")) {
+            extraContainer.classList.remove("hidden");
+            toggleBtn.innerText = "Hide Extra Scales";
+        } else {
+            extraContainer.classList.add("hidden");
+            toggleBtn.innerText = "Show All Scales";
+        }
+    };
+}
+
+function setupInteractiveControls(bookId, book) {
+    const statusSelect = document.getElementById("d-status-select");
+    const dateContainer = document.getElementById("d-user-dates");
+    const startInput = document.getElementById("d-started-input");
+    const finishInput = document.getElementById("d-finished-input");
+
+    statusSelect.addEventListener("change", async (e) => {
+        const val = e.target.value;
+        if (val === "Delete") {
+            if (confirm("Are you sure?")) {
+                const res = await API.deleteBook(bookId);
+                if (res.success) window.location.href = "index.html";
+            } else {
+                e.target.value = book.userStatus || "Want to Read";
+            }
+        } else {
+            await API.saveUserStatus(bookId, val);
+            book.userStatus = val;
+            if (["Reading", "Finished", "Dropped"].includes(val))
+                dateContainer.classList.remove("hidden");
+            else if (!startInput.value && !finishInput.value)
+                dateContainer.classList.add("hidden");
+        }
+    });
+
+    const favBtn = document.getElementById("d-fav-btn");
+    favBtn.addEventListener("click", async () => {
+        const res = await API.toggleFavorite(bookId);
+        if (res.success) favBtn.classList.toggle("active", res.isFavorite);
+    });
+
+    const saveDates = async () => {
+        await API.saveUserDates(bookId, startInput.value, finishInput.value);
+    };
+    [startInput, finishInput].forEach((input) => {
+        input.addEventListener("blur", saveDates);
+        input.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") input.blur();
+        });
+    });
+
+    const starsContainer = document.getElementById("d-user-stars");
+    let currentRating = book.userScore || 0;
+
+    starsContainer.addEventListener("mousemove", (e) => {
+        const star = e.target;
+        if (!star.classList.contains("star")) return;
+        const index = Array.from(
+            starsContainer.querySelectorAll(".star")
+        ).indexOf(star);
+        const rect = star.getBoundingClientRect();
+        const isLeft = e.clientX - rect.left < rect.width / 2;
+        const hoverVal = isLeft ? index + 0.5 : index + 1;
+        renderInteractiveStars(hoverVal, starsContainer);
+        document.getElementById("d-user-score-text").innerText =
+            hoverVal.toFixed(1);
+    });
+
+    starsContainer.addEventListener("mouseleave", () => {
+        renderInteractiveStars(currentRating, starsContainer);
+        document.getElementById("d-user-score-text").innerText =
+            currentRating > 0 ? currentRating.toFixed(1) + "/5" : "Not Rated";
+    });
+
+    starsContainer.addEventListener("click", async (e) => {
+        const star = e.target;
+        if (!star.classList.contains("star")) return;
+        const index = Array.from(
+            starsContainer.querySelectorAll(".star")
+        ).indexOf(star);
+        const rect = star.getBoundingClientRect();
+        const isLeft = e.clientX - rect.left < rect.width / 2;
+        currentRating = isLeft ? index + 0.5 : index + 1;
+        await API.saveUserScore(bookId, currentRating);
+        if (statusSelect.value === "Want to Read")
+            statusSelect.value = "Finished";
+        renderInteractiveStars(currentRating, starsContainer);
+        document.getElementById("d-user-score-text").innerText =
+            currentRating + "/5";
+    });
+}
+
+function renderInteractiveStars(score, container) {
+    let html = "";
+    for (let i = 1; i <= 5; i++) {
+        if (score >= i) html += '<span class="star filled">★</span>';
+        else if (score >= i - 0.5)
+            html += '<span class="star half-filled">★</span>';
+        else html += '<span class="star">★</span>';
+    }
+    container.innerHTML = html;
 }
 
 function createScaleBlock(title, dataObj, config) {
@@ -298,7 +507,6 @@ function createScaleBlock(title, dataObj, config) {
         return wrapper;
     }
 
-    // Min Width Calc
     const MIN_WIDTH = 7;
     let smallSegs = activeSegments.filter((s) => s.val < MIN_WIDTH);
     let largeSegs = activeSegments.filter((s) => s.val >= MIN_WIDTH);
@@ -336,7 +544,6 @@ function renderContentWarnings(warnings) {
     const fullListDiv = document.getElementById("full-warnings-list");
     const btn = document.getElementById("view-all-warnings-btn");
 
-    // Modal Logic
     const modal = document.getElementById("warnings-modal-backdrop");
     document.getElementById("close-warnings-modal").onclick = () =>
         modal.classList.add("hidden");
@@ -390,4 +597,28 @@ function renderContentWarnings(warnings) {
     } else {
         btn.classList.add("hidden");
     }
+}
+
+function renderScoreBreakdown(data) {
+    const container = document.getElementById("d-breakdown-container");
+    const chart = document.getElementById("d-breakdown-chart");
+
+    container.classList.remove("hidden");
+    chart.innerHTML = "";
+    const stars = ["1", "2", "3", "4", "5"];
+    stars.forEach((starKey) => {
+        const info = data[starKey] || { count: 0, percent: 0 };
+        const percent = parseInt(info.percent);
+        const isMax = percent > 0 && percent >= 50;
+        const barClass = isMax ? "bd-bar highlight" : "bd-bar";
+        const html = `
+            <div class="breakdown-bar-group" data-tooltip="${formatNum(
+                info.count
+            )} ratings (${percent}%)">
+                <div class="${barClass}" style="height: ${percent}%"></div>
+                <div class="bd-label">${starKey}★</div>
+            </div>
+        `;
+        chart.innerHTML += html;
+    });
 }

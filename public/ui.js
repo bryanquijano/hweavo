@@ -11,9 +11,8 @@ export function renderBookGrid(books) {
         return;
     }
 
-    grid.innerHTML = ""; // Clear empty state
+    grid.innerHTML = "";
 
-    // Create Grid Container if not handled by CSS on main
     const gridContainer = document.createElement("div");
     gridContainer.className = "books-container";
 
@@ -22,7 +21,6 @@ export function renderBookGrid(books) {
         card.className = "book-card";
         card.dataset.id = book.id;
 
-        // Use a placeholder if cover is missing or broken url
         const coverSrc = book.cover ? book.cover : "assets/placeholder.jpg";
 
         card.innerHTML = `
@@ -41,7 +39,6 @@ export function renderBookGrid(books) {
             </div>
         `;
 
-        // UPDATE CLICK EVENT
         card.addEventListener("click", () => {
             window.location.href = `details.html?id=${book.id}`;
         });
@@ -60,6 +57,19 @@ export function resetForms() {
     // Reset hidden/custom elements
     document.getElementById("gr-is-series").checked = false;
     document.getElementById("series-inputs").classList.add("hidden");
+
+    // Detailed Score Reset
+    document.getElementById("gr-detailed-score-check").checked = false;
+    document.getElementById("detailed-score-input").classList.add("hidden");
+    document.getElementById("gr-detailed-score-text").value = "";
+
+    // NEW: Choice Awards Reset
+    document.getElementById("gr-choice-awards").value = "";
+
+    // User Data Reset
+    document.getElementById("user-status-select").value = "Want to Read";
+    document.getElementById("user-started-date").value = "";
+    document.getElementById("user-finished-date").value = "";
 
     const moodsContainer = document.getElementById("moods-container");
     if (moodsContainer) {
@@ -126,6 +136,15 @@ export function fillGrForm(data) {
         document.getElementById("gr-characters").value =
             data.characters.join(", ");
 
+    // NEW: Populate Choice Awards
+    if (data.goodreadsChoiceAward) {
+        document.getElementById("gr-choice-awards").value = JSON.stringify(
+            data.goodreadsChoiceAward,
+            null,
+            2
+        );
+    }
+    
     if (data.isSeries) {
         const check = document.getElementById("gr-is-series");
         check.checked = true;
@@ -159,7 +178,6 @@ export function fillSgForm(data) {
         if (el) el.value = val || 0;
     };
     if (data.scales) {
-        // Map data to inputs (Shortened for brevity, relies on IDs being correct)
         const mapScale = (cat, prefix) => {
             const s = data.scales[cat] || {};
             const keys = {
@@ -178,7 +196,6 @@ export function fillSgForm(data) {
                 if (s[key] !== undefined)
                     setScale(`${prefix}-${keys[key]}`, s[key]);
             }
-            // Manual fallbacks for different key names in UI vs Parser
             if (s["N/A"]) setScale(`${prefix}-na`, s["N/A"]);
         };
 

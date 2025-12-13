@@ -979,3 +979,274 @@ textarea:focus {
 }
 
 /* Reuse existing star classes */
+
+/* USER DATES */
+.user-dates {
+    display: flex;
+    /* flex-direction: column; */
+    gap: 8px;
+    /* margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border); */
+}
+
+.date-separator {
+    margin-top: 5px;
+    color: #8d8d8d;
+}
+
+.date-input {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.date-input:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+/* SCORE BREAKDOWN CHART */
+.breakdown-section {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+
+.breakdown-section h5 {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.breakdown-chart {
+    display: flex;
+    align-items: flex-end;
+    /* Align bars to bottom */
+    gap: 4px;
+    height: 100px;
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.breakdown-bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    position: relative;
+    cursor: pointer;
+    /* For tooltip */
+}
+
+/* The visual bar */
+.bd-bar {
+    width: 100%;
+    background-color: #444;
+    /* Default Muted */
+    border-radius: 2px 2px 0 0;
+    transition: height 0.3s ease;
+    min-height: 2px;
+}
+
+.bd-bar.highlight {
+    background-color: #ffd700;
+}
+
+/* Accent for max or specific logic */
+
+/* Labels below bar */
+.bd-label {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Hover Tooltip logic (CSS only for simplicity) */
+.breakdown-bar-group:hover .bd-bar {
+    background-color: var(--accent);
+}
+
+.breakdown-bar-group::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 10;
+    margin-bottom: 5px;
+}
+
+.breakdown-bar-group:hover::after {
+    opacity: 1;
+}
+
+/* Clickable Links (Author/Series) */
+.clickable-link {
+    cursor: pointer;
+    transition: color 0.2s, opacity 0.2s;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+}
+
+.clickable-link:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+}
+
+/* Synopsis Truncation */
+.synopsis-container {
+    position: relative;
+}
+
+.synopsis-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    /* Show only 4 lines initially */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#toggle-synopsis-btn {
+    margin-top: 0.5rem;
+    padding: 0;
+    font-size: 0.85rem;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* Scales Toggle */
+#toggle-scales-btn {
+    width: 100%;
+    margin-top: 1rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
+#toggle-scales-btn:hover {
+    background: var(--bg-card);
+    color: var(--text-main);
+}
+
+/* Modal Book List (Series/Author Results) */
+.modal-book-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-book-item {
+    display: flex;
+    gap: 15px;
+    padding: 10px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    align-items: center;
+}
+
+.modal-book-item:hover {
+    background: #333;
+}
+
+.modal-book-item img {
+    width: 40px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.modal-book-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.modal-book-info p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* AUTHOR PAGE */
+.author-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.author-header {
+    margin-bottom: 3rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 1rem;
+}
+
+.author-header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    color: var(--text-main);
+}
+
+.author-stats {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* Catalog Sections */
+.catalog-section {
+    margin-bottom: 3rem;
+}
+
+.catalog-header {
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Card Updates for Catalog */
+.card-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.series-tag {
+    background: var(--bg-input);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text-main);
+}
+
+/* Author Modal "View All" Button */
+#author-view-all-btn {
+    margin-top: 1rem;
+    width: 100%;
+}

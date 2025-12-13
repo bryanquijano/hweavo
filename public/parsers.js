@@ -1,5 +1,5 @@
 // --- GOODREADS ---
-export function parseGoodreadsText(text, isSeries) {
+export function parseGoodreadsText(text, isSeries, hasAwards) {
     let lines = text
         .split("\n")
         .map((l) => l.trim())
@@ -7,15 +7,21 @@ export function parseGoodreadsText(text, isSeries) {
     let cursor = 0;
     let result = {};
 
+    // 1. Title / Series
     if (isSeries) {
         const seriesLine = lines[cursor++];
-        const seriesMatch = seriesLine.match(/^(.*) #(\d+)$/);
+        // UPDATED REGEX: Matches "Series Name" + " # " + "Anything (decimals/text)"
+        // This handles "#0.5", "#prologue for 1", etc.
+        const seriesMatch = seriesLine.match(/^(.*)\s+#(.+)$/);
+
         if (seriesMatch) {
-            result.seriesName = seriesMatch[1];
-            result.seriesNum = seriesMatch[2];
+            result.seriesName = seriesMatch[1].trim();
+            result.seriesNum = seriesMatch[2].trim();
             result.isSeries = true;
         } else {
+            // Fallback: If checked but regex fails, assume whole line is series name (rare)
             result.seriesName = seriesLine;
+            result.seriesNum = "";
             result.isSeries = true;
         }
         result.title = lines[cursor++];
@@ -24,10 +30,14 @@ export function parseGoodreadsText(text, isSeries) {
         result.isSeries = false;
     }
 
+    // 2. Author
     const authorLine = lines[cursor++];
     if (authorLine) result.authors = authorLine.split(",").map((a) => a.trim());
+
+    // 3. Score
     result.score = lines[cursor++];
 
+    // 4. Ratings & Reviews
     const statsLine = lines[cursor++];
     if (statsLine) {
         const statsMatch = statsLine.match(/([\d,]+) ratings([\d,]+) reviews/);
@@ -37,6 +47,34 @@ export function parseGoodreadsText(text, isSeries) {
         }
     }
 
+    // --- CHOICE AWARDS PARSING ---
+    if (hasAwards) {
+        if (lines[cursor] === "Goodreads Choice Award") {
+            cursor++;
+        }
+        const awardsLine = lines[cursor++];
+        if (awardsLine) {
+            const parsedAwards = [];
+            const rawEntries = awardsLine.split(/\), /);
+
+            rawEntries.forEach((entry) => {
+                if (!entry.endsWith(")")) entry += ")";
+                const match = entry.match(
+                    /^(Winner|Nominee)\s+for\s+(.+?)\s+\((\d{4})\)$/
+                );
+                if (match) {
+                    parsedAwards.push({
+                        status: match[1],
+                        category: match[2],
+                        date: match[3],
+                    });
+                }
+            });
+            result.goodreadsChoiceAward = parsedAwards;
+        }
+    }
+
+    // 5. Synopsis
     let synopsisArr = [];
     let genreLineIndex = -1;
     for (let i = cursor; i < lines.length; i++) {
@@ -61,6 +99,7 @@ export function parseGoodreadsText(text, isSeries) {
         cursor++;
     }
 
+    // 6. Format
     const formatLine = lines[cursor++];
     if (formatLine) {
         const pageMatch = formatLine.match(/(\d+) pages/);
@@ -70,6 +109,7 @@ export function parseGoodreadsText(text, isSeries) {
         else if (!pageMatch) result.style = formatLine;
     }
 
+    // 7. Metadata Loop
     const remainingText = lines.slice(cursor).join("\n");
     const extract = (label) => {
         const labels =
@@ -105,7 +145,6 @@ export function parseGoodreadsText(text, isSeries) {
     if (settingRaw) result.setting = settingRaw.split(",").map((s) => s.trim());
     const charsRaw = extract("Characters");
     if (charsRaw) result.characters = charsRaw.split(",").map((s) => s.trim());
-
     const isbnSection = extract("ISBN");
     if (isbnSection) {
         const parts = isbnSection.split("(");
@@ -118,6 +157,36 @@ export function parseGoodreadsText(text, isSeries) {
     result.asin = extract("ASIN");
     result.language = extract("Language");
     return result;
+}
+
+// --- NEW HELPER: Detailed Score ---
+export function parseDetailedScore(text) {
+    if (!text) return null;
+    const lines = text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l);
+    const breakdown = {};
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const starMatch = line.match(/^(\d+)\s*stars?/i);
+
+        if (starMatch && lines[i + 1]) {
+            const stars = starMatch[1];
+            const dataLine = lines[i + 1];
+            const dataMatch = dataLine.match(/([\d,]+)\s*\((\d+)%\)/);
+
+            if (dataMatch) {
+                breakdown[stars] = {
+                    count: dataMatch[1].replace(/,/g, ""),
+                    percent: dataMatch[2],
+                };
+                i++;
+            }
+        }
+    }
+    return Object.keys(breakdown).length > 0 ? breakdown : null;
 }
 
 // --- STORYGRAPH ---
@@ -142,11 +211,25 @@ export function parseStoryGraphText(text) {
         while (cursor < lines.length) {
             const line = lines[cursor];
             if (line === "Description") break;
-            if (line !== "Personalized" && line !== "Powered by AI (Beta)")
+
+            // Filter out boilerplate text
+            if (line !== "Personalized" && line !== "Powered by AI (Beta)") {
                 aiSummary.push(line);
+            }
             cursor++;
         }
-        result.aiSummary = aiSummary;
+
+        // NEW: Check for empty AI data placeholder
+        const combinedAI = aiSummary.join(" ");
+        if (
+            combinedAI.includes(
+                "Unfortunately, we don't have enough information"
+            )
+        ) {
+            result.aiSummary = []; // Clear it
+        } else {
+            result.aiSummary = aiSummary;
+        }
     }
 
     let descStart = -1;
@@ -252,6 +335,8 @@ export function parseStoryGraphText(text) {
     let currentLevel = null;
     for (let i = cursor; i < lines.length; i++) {
         let line = lines[i];
+
+        // Headers
         if (line === "Graphic") {
             currentLevel = "graphic";
             continue;
@@ -264,12 +349,21 @@ export function parseStoryGraphText(text) {
             currentLevel = "minor";
             continue;
         }
+
+        // Skip Boilerplate
         if (
             line === "Submitted by users as part of their reviews" ||
             line === "View Summary" ||
             line === "Content Warnings"
         )
             continue;
+
+        // NEW: Check for empty warning placeholder
+        if (line.includes("This book doesn't have any content warnings yet!")) {
+            // Stop processing warnings entirely
+            break;
+        }
+
         if (currentLevel) {
             const cleanLine = line.replace(/\s\([\d,]+\)$/, "").trim();
             if (cleanLine) warnings[currentLevel].push(cleanLine);

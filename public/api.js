@@ -63,6 +63,14 @@ export async function saveUserStatus(bookId, status) {
     });
 }
 
+export async function saveUserDates(bookId, started, finished) {
+    await fetch("/save-dates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId, started, finished }),
+    });
+}
+
 export async function toggleFavorite(bookId) {
     const res = await fetch("/toggle-favorite", {
         method: "POST",

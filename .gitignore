@@ -2,6 +2,4 @@
 /data/user.json
 /node_modules
 /public/assets/covers/*
-notes.md
-template.md
-updates.md
+*.md

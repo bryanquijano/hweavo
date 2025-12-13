@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         grForm: document.getElementById("goodreads-form"),
         sgForm: document.getElementById("storygraph-form"),
         grIsSeries: document.getElementById("gr-is-series"),
+        bulkAwardsWrapper: document.getElementById("bulk-awards-wrapper"),
         bulkIsSeries: document.getElementById("bulk-is-series-check"),
         bulkSeriesWrapper: document.getElementById("bulk-series-wrapper"),
         coverUrl: document.getElementById("cover-url"),
@@ -43,6 +44,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         dropArea: document.getElementById("drop-area"),
         fileElem: document.getElementById("fileElem"),
         urlOptions: document.getElementById("url-options"),
+
+        // NEW Inputs
+        grDetailedCheck: document.getElementById("gr-detailed-score-check"),
+        grDetailedInput: document.getElementById("detailed-score-input"),
+        grDetailedText: document.getElementById("gr-detailed-score-text"),
+        grChoiceAwards: document.getElementById("gr-choice-awards"),
+        bulkHasAwards: document.getElementById("bulk-has-awards-check"), // Ensure this is in index.html!
+        userStatus: document.getElementById("user-status-select"),
+        userStarted: document.getElementById("user-started-date"),
+        userFinished: document.getElementById("user-finished-date"),
 
         // Containers
         moodsContainer: document.getElementById("moods-container"),
@@ -82,10 +93,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Bulk Modal Logic
     const openBulk = () => {
         els.bulkBackdrop.classList.remove("hidden");
-        // Hide series checkbox if on StoryGraph tab
-        if (activeTab === "storygraph")
+        if (activeTab === "storygraph") {
+            // Hide Goodreads-specific fields
             els.bulkSeriesWrapper.classList.add("hidden");
-        else els.bulkSeriesWrapper.classList.remove("hidden");
+            els.bulkAwardsWrapper.classList.add("hidden"); // Hide Awards
+        } else {
+            // Show Goodreads-specific fields
+            els.bulkSeriesWrapper.classList.remove("hidden");
+            els.bulkAwardsWrapper.classList.remove("hidden"); // Show Awards
+        }
     };
     els.openBulkGr.onclick = openBulk;
     els.openBulkSg.onclick = openBulk;
@@ -99,13 +115,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             if (activeTab === "goodreads") {
                 UI.resetForms();
+
+                // Safe check if element exists
+                const hasAwards = els.bulkHasAwards
+                    ? els.bulkHasAwards.checked
+                    : false;
+
                 const data = Parsers.parseGoodreadsText(
                     text,
-                    els.bulkIsSeries.checked
+                    els.bulkIsSeries.checked,
+                    hasAwards
                 );
                 UI.fillGrForm(data);
             } else {
-                // Manually clear SG form logic specifically
                 document.getElementById("storygraph-form").reset();
                 if (els.moodsContainer) els.moodsContainer.innerHTML = "";
                 UI.addMoodRow(els.moodsContainer);
@@ -128,7 +150,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         UI.addMoodRow(els.moodsContainer);
     };
 
-    // Dynamic Moods (Initialize one row)
+    // Toggle Detailed Score
+    if (els.grDetailedCheck) {
+        els.grDetailedCheck.onchange = (e) => {
+            if (e.target.checked)
+                els.grDetailedInput.classList.remove("hidden");
+            else els.grDetailedInput.classList.add("hidden");
+        };
+    }
+
+    // Dynamic Moods
     if (els.moodsContainer) UI.addMoodRow(els.moodsContainer);
     els.addMood.onclick = () => UI.addMoodRow(els.moodsContainer);
 
@@ -139,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         else inputs.classList.add("hidden");
     };
 
-    // Save Book Handlers (Unified)
+    // Save Book Handlers
     els.grForm.onsubmit = handleSave;
     els.sgForm.onsubmit = handleSave;
 
@@ -149,11 +180,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         const grData = scrapeGoodreadsData();
         const sgData = scrapeStoryGraphData();
 
+        const userData = {
+            status: els.userStatus.value,
+            started: els.userStarted.value,
+            finished: els.userFinished.value,
+        };
+
         const payload = {
             cover: els.finalCoverPath.value,
             downloadCover: els.saveLocal.checked,
             goodreads: grData,
             storygraph: sgData,
+            user: userData,
         };
 
         const result = await API.saveBookPayload(payload);
@@ -161,7 +199,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             UI.resetForms();
             els.modalBackdrop.classList.add("hidden");
 
-            // Show Rating Modal
             currentSavedBookId = result.id;
             els.rateModalCover.src = result.cover || "";
             els.rateModalTitle.innerText = result.title;
@@ -221,11 +258,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- GO TO DETAILS LOGIC ---
     els.goToDetails.onclick = () => {
-        if (currentSavedBookId) {
+        if (currentSavedBookId)
             window.location.href = `details.html?id=${currentSavedBookId}`;
-        }
     };
 
     // --- 6. COVER IMAGE LOGIC ---
@@ -279,13 +314,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- HELPERS (Scrapers) ---
+    // --- HELPERS ---
     async function loadBooks() {
         const books = await API.getBooks();
         UI.renderBookGrid(books);
     }
 
     function scrapeGoodreadsData() {
+        const detailedText = els.grDetailedCheck.checked
+            ? els.grDetailedText.value
+            : "";
+
+        let choiceAwards = [];
+        try {
+            if (els.grChoiceAwards && els.grChoiceAwards.value) {
+                choiceAwards = JSON.parse(els.grChoiceAwards.value);
+            }
+        } catch (e) {
+            console.error("Invalid Choice Awards JSON");
+        }
+
         return {
             title: document.getElementById("gr-title").value,
             isSeries: els.grIsSeries.checked,
@@ -298,6 +346,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             score: document.getElementById("gr-score").value,
             ratings: document.getElementById("gr-ratings").value,
             reviews: document.getElementById("gr-reviews").value,
+            detailedScore: Parsers.parseDetailedScore(detailedText),
+            goodreadsChoiceAward: choiceAwards, // Added
             synopsis: document
                 .getElementById("gr-synopsis")
                 .value.split("\n\n"),

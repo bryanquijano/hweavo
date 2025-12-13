@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="#" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Details</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <nav>
+        <div class="logo"><a href="index.html" style="text-decoration:none; color:inherit;">BookTracker</a></div>
+        <a href="index.html" class="btn secondary">Back to Home</a>
+    </nav>
+
+    <main class="details-container">
+        <div id="loading" style="text-align:center; padding: 3rem;">Loading book data...</div>
+
+        <div id="details-content" class="hidden">
+            <aside class="details-sidebar">
+                <div class="cover-wrapper">
+                    <img id="d-cover" src="" alt="Cover">
+                </div>
+
+                <div class="user-controls">
+                    <select id="d-status-select" class="status-select">
+                        <option value="Want to Read">Want to Read</option>
+                        <option value="Reading">Reading</option>
+                        <option value="Finished">Finished</option>
+                        <option value="Dropped">Dropped</option>
+                        <option value="Delete" class="text-danger">Delete Book</option>
+                    </select>
+                    <button id="d-fav-btn" class="fav-btn" aria-label="Favorite">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="personal-rating-section">
+                    <h4>Your Rating</h4>
+                    <div class="static-stars interactive" id="d-user-stars"></div>
+                    <span id="d-user-score-text">0.0</span>
+                </div>
+
+                <div class="sidebar-meta">
+                    <div class="meta-item"><strong>Format</strong><span id="d-format"></span></div>
+                    <div class="meta-item"><strong>Published</strong><span id="d-published"></span></div>
+                    <div class="meta-item"><strong>ISBN</strong><span id="d-isbn"></span></div>
+                </div>
+            </aside>
+
+            <section class="details-main">
+
+                <header class="book-header">
+                    <div class="series-badge hidden" id="d-series-badge"></div>
+                    <h1 id="d-title">Title</h1>
+                    <h3 id="d-authors">Author</h3>
+                    <div class="gr-stats">
+                        <span class="score-badge">★ <span id="d-gr-score"></span></span>
+                        <span class="meta-sep">•</span>
+                        <span id="d-gr-ratings"></span> ratings
+                        <span class="meta-sep">•</span>
+                        <span id="d-gr-reviews"></span> reviews
+                    </div>
+                </header>
+
+                <div class="genres-list" id="d-genres"></div>
+
+                <div class="section-block">
+                    <h3>Synopsis</h3>
+                    <div id="d-synopsis" class="text-block"></div>
+                </div>
+
+                <div class="section-block hidden" id="sg-ai-block">
+                    <h3>Who's it for? (AI)</h3>
+                    <div id="d-ai-summary" class="text-block ai-text"></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card full-width">
+                        <h4>Moods</h4>
+                        <div id="d-moods" class="moods-container-row"></div>
+                    </div>
+                
+                    <div class="stat-card full-width">
+                        <h4>StoryGraph Scales</h4>
+                        <div id="d-scales-container" class="scales-wrapper">
+                        </div>
+                    </div>
+                
+                    <div class="stat-card full-width">
+                        <h4>Content Warnings</h4>
+                        <div id="d-warnings-preview" class="warnings-preview"></div>
+                        <button id="view-all-warnings-btn" class="btn secondary small hidden" style="margin-top:1rem;">View Full
+                            Warnings</button>
+                    </div>
+                </div>
+
+                <details class="advanced-details">
+                    <summary>Advanced Metadata & Awards</summary>
+                    <div id="d-advanced-content"></div>
+                </details>
+
+            </section>
+        </div>
+    </main>
+
+    <div id="warnings-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Content Warnings</h3>
+                <button class="close-modal" id="close-warnings-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="full-warnings-list" class="full-warnings-container">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="details.js"></script>
+</body>
+
+</html>

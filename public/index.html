@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="#" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Book Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <nav>
+        <div class="logo">BookTracker</div>
+        <button id="add-book-btn" class="btn primary">+ Add Book</button>
+    </nav>
+
+    <main id="book-grid">
+        <div class="empty-state">
+            <h2>Your collection is empty</h2>
+            <p>Click "+ Add Book" to get started.</p>
+        </div>
+    </main>
+
+    <div id="modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add New Book</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" data-target="goodreads">Goodreads</button>
+                <button class="tab" data-target="storygraph">StoryGraph</button>
+            </div>
+
+            <div class="modal-body">
+
+                <div id="tab-goodreads" class="tab-content active">
+                    <button type="button" id="open-bulk-btn" class="btn secondary full-width"
+                        style="margin-bottom: 1.5rem;">Paste Bulk Data</button>
+
+                    <form id="goodreads-form" autocomplete="off">
+                        <div class="form-group">
+                            <label>Book Cover</label>
+                            <div id="drop-area" class="drop-area">
+                                <p>Drag & drop image here</p>
+                                <input type="file" id="fileElem" accept="image/*" style="display:none">
+                                <button type="button" class="btn secondary small"
+                                    onclick="document.getElementById('fileElem').click()">Or Select File</button>
+                                <img id="cover-preview" class="hidden" src="" alt="Cover Preview">
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <input type="text" id="cover-url" placeholder="Or paste Image URL...">
+                                <div id="url-options" class="checkbox-group hidden" style="margin-top: 5px;">
+                                    <input type="checkbox" id="save-local-copy">
+                                    <label for="save-local-copy">Download local copy?</label>
+                                </div>
+                            </div>
+                            <input type="hidden" id="final-cover-path" name="coverPath">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Title <span class="req">*</span></label>
+                            <input type="text" id="gr-title" name="title" required>
+                        </div>
+
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="gr-is-series">
+                            <label for="gr-is-series">Is Series?</label>
+                        </div>
+                        <div id="series-inputs" class="hidden">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Series Name <span class="opt">(optional)</span></label>
+                                    <input type="text" id="gr-series-name">
+                                </div>
+                                <div class="form-group small">
+                                    <label>Series # <span class="req">*</span></label>
+                                    <input type="text" id="gr-series-num">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Author(s) <span class="req">*</span> <small>(comma separated)</small></label>
+                            <input type="text" id="gr-authors">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Score <span class="req">*</span></label>
+                                <input type="number" step="0.01" id="gr-score">
+                            </div>
+                            <div class="form-group">
+                                <label>Ratings <span class="req">*</span></label>
+                                <input type="number" id="gr-ratings">
+                            </div>
+                            <div class="form-group">
+                                <label>Reviews <span class="req">*</span></label>
+                                <input type="number" id="gr-reviews">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Synopsis <span class="req">*</span></label>
+                            <textarea id="gr-synopsis" rows="5"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Genres <span class="req">*</span></label>
+                            <input type="text" id="gr-genres">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Page Count <span class="req">*</span></label>
+                                <input type="number" id="gr-pages">
+                            </div>
+                            <div class="form-group">
+                                <label>Style <span class="req">*</span></label>
+                                <input type="text" id="gr-style">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>First Published <span class="req">*</span></label>
+                                <input type="text" id="gr-published">
+                            </div>
+                            <div class="form-group">
+                                <label>Language <span class="req">*</span></label>
+                                <input type="text" id="gr-language">
+                            </div>
+                        </div>
+
+                        <details>
+                            <summary style="cursor:pointer; margin-bottom:1rem; color:var(--accent);">Advanced Metadata
+                            </summary>
+                            <div class="form-group">
+                                <label>Original Title <span class="opt">(optional)</span></label>
+                                <input type="text" id="gr-orig-title">
+                            </div>
+                            <div class="form-group">
+                                <label>Publisher <span class="opt">(optional)</span></label>
+                                <input type="text" id="gr-publisher">
+                            </div>
+                            <div class="form-group">
+                                <label>ISBN / ISBN10 <span class="opt">(optional)</span></label>
+                                <input type="text" id="gr-isbn" placeholder="ISBN13">
+                                <input type="text" id="gr-isbn10" placeholder="ISBN10" style="margin-top:5px;">
+                            </div>
+                            <div class="form-group">
+                                <label>ASIN <span class="opt">(optional)</span></label>
+                                <input type="text" id="gr-asin">
+                            </div>
+                            <div class="form-group">
+                                <label>Literary Awards <span class="opt">(optional)</span></label>
+                                <textarea id="gr-awards"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Setting <span class="opt">(optional)</span></label>
+                                <textarea id="gr-setting"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Characters <span class="opt">(optional)</span></label>
+                                <textarea id="gr-characters"></textarea>
+                            </div>
+                        </details>
+
+                        <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <button type="button" id="clear-form-btn" class="btn secondary">Clear Form</button>
+                            <button type="submit" class="btn primary" style="flex: 1;">Save Book</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="tab-storygraph" class="tab-content">
+                    <button type="button" id="open-bulk-sg-btn" class="btn secondary full-width"
+                        style="margin-bottom: 1.5rem;">Paste Bulk Data</button>
+
+                    <form id="storygraph-form" autocomplete="off">
+
+                        <div class="form-group">
+                            <label>Who's It For? (AI Summary)</label>
+                            <textarea id="sg-ai-summary" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="sg-description" rows="5"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Score</label>
+                                <input type="number" step="0.01" id="sg-score">
+                            </div>
+                            <div class="form-group">
+                                <label>Reviews</label>
+                                <input type="number" id="sg-reviews">
+                            </div>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+
+                        <div class="form-group">
+                            <label>Moods</label>
+                            <div id="moods-container"></div>
+                            <button type="button" id="add-mood-btn" class="btn secondary small"
+                                style="margin-top: 10px;">+ Add Mood</button>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+
+                        <h4>StoryGraph Scales</h4>
+
+                        <div class="scale-group">
+                            <label>Pace</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Fast %</label><input type="number"
+                                        id="sg-pace-fast"></div>
+                                <div class="form-group small"><label>Medium %</label><input type="number"
+                                        id="sg-pace-medium"></div>
+                                <div class="form-group small"><label>Slow %</label><input type="number"
+                                        id="sg-pace-slow"></div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-pace-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scale-group">
+                            <label>Plot or Character Driven?</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Plot %</label><input type="number"
+                                        id="sg-type-plot"></div>
+                                <div class="form-group small"><label>Mix %</label><input type="number" id="sg-type-mix">
+                                </div>
+                                <div class="form-group small"><label>Char %</label><input type="number"
+                                        id="sg-type-char"></div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-type-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scale-group">
+                            <label>Strong Character Development?</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Yes %</label><input type="number" id="sg-dev-yes">
+                                </div>
+                                <div class="form-group small"><label>Comp %</label><input type="number"
+                                        id="sg-dev-comp"></div>
+                                <div class="form-group small"><label>No %</label><input type="number" id="sg-dev-no">
+                                </div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-dev-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scale-group">
+                            <label>Loveable Characters?</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Yes %</label><input type="number" id="sg-love-yes">
+                                </div>
+                                <div class="form-group small"><label>Comp %</label><input type="number"
+                                        id="sg-love-comp"></div>
+                                <div class="form-group small"><label>No %</label><input type="number" id="sg-love-no">
+                                </div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-love-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scale-group">
+                            <label>Diverse Cast?</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Yes %</label><input type="number" id="sg-div-yes">
+                                </div>
+                                <div class="form-group small"><label>Comp %</label><input type="number"
+                                        id="sg-div-comp"></div>
+                                <div class="form-group small"><label>No %</label><input type="number" id="sg-div-no">
+                                </div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-div-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scale-group">
+                            <label>Flaws Main Focus?</label>
+                            <div class="form-row">
+                                <div class="form-group small"><label>Yes %</label><input type="number" id="sg-flaw-yes">
+                                </div>
+                                <div class="form-group small"><label>Comp %</label><input type="number"
+                                        id="sg-flaw-comp"></div>
+                                <div class="form-group small"><label>No %</label><input type="number" id="sg-flaw-no">
+                                </div>
+                                <div class="form-group small"><label>N/A %</label><input type="number" id="sg-flaw-na">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+
+                        <h4>Content Warnings</h4>
+                        <div class="form-group">
+                            <label>Graphic</label>
+                            <input type="text" id="sg-warn-graphic" placeholder="Comma separated...">
+                        </div>
+                        <div class="form-group">
+                            <label>Moderate</label>
+                            <input type="text" id="sg-warn-moderate" placeholder="Comma separated...">
+                        </div>
+                        <div class="form-group">
+                            <label>Minor</label>
+                            <input type="text" id="sg-warn-minor" placeholder="Comma separated...">
+                        </div>
+
+                        <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
+                            <button type="button" id="clear-sg-btn" class="btn secondary">Clear Form</button>
+                            <button type="submit" class="btn primary" style="flex: 1;">Save Book</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bulk-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Bulk Import Data</h3>
+                <button class="close-bulk">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="bulk-series-wrapper" class="form-group checkbox-group" style="margin-bottom:1rem;">
+                    <input type="checkbox" id="bulk-is-series-check">
+                    <label for="bulk-is-series-check">Does line 1 contain "Series Name #Num"?</label>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    Ensure you add <strong>//</strong> after "Genres" (e.g., <em>Genres//Fiction...</em>) before
+                    pasting.
+                </p>
+                <textarea id="bulk-text" rows="15" placeholder="Paste the text block here..."></textarea>
+                <button id="process-bulk-btn" class="btn primary full-width">Auto-Fill Form</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rating-modal-backdrop" class="modal-backdrop hidden">
+        <div class="modal" style="width: 400px; text-align: center;">
+            <div class="modal-body">
+                <h3 style="margin-top: 0;">Book Saved!</h3>
+                <div class="saved-book-preview">
+                    <img id="rate-modal-cover" src="" alt="Book Cover"
+                        style="width: 120px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <h4 id="rate-modal-title" style="margin: 1rem 0 0.5rem;">Title</h4>
+                </div>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">What's your personal rating?</p>
+                <div class="star-rating-container">
+                    <div id="stars-wrapper">
+                        <span class="star" data-val="1">★</span>
+                        <span class="star" data-val="2">★</span>
+                        <span class="star" data-val="3">★</span>
+                        <span class="star" data-val="4">★</span>
+                        <span class="star" data-val="5">★</span>
+                    </div>
+                    <div id="rating-value">0.0</div>
+                </div>
+                <div style="margin-top: 2rem;">
+                    <button id="go-to-details-btn" class="btn primary full-width">Go to Details</button>
+                    <button id="close-rating-modal" class="btn secondary full-width"
+                        style="margin-top: 0.5rem;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>

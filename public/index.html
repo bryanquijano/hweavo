@@ -16,11 +16,59 @@
         <button id="add-book-btn" class="btn primary">+ Add Book</button>
     </nav>
 
-    <main id="book-grid">
-        <div class="empty-state">
-            <h2>Your collection is empty</h2>
-            <p>Click "+ Add Book" to get started.</p>
+    <main id="main-content">
+    
+        <section class="toolbar">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search title, author, year...">
+                <span id="showing-count" class="counter-text">Showing 0 books</span>
+            </div>
+    
+            <div class="filters-container">
+                <button id="fav-filter-btn" class="btn secondary toggle-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path
+                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                    Favorites
+                </button>
+    
+                <div class="select-wrapper">
+                    <select id="sort-select">
+                        <option value="added_new">Date Added (Newest)</option>
+                        <option value="added_old">Date Added (Oldest)</option>
+                        <option value="title_az">Title (A-Z)</option>
+                        <option value="title_za">Title (Z-A)</option>
+                        <option value="author_az">Author (A-Z)</option>
+                        <option value="year_new">Published (Newest)</option>
+                        <option value="year_old">Published (Oldest)</option>
+                        <option value="rating_high">My Rating (High)</option>
+                        <option value="rating_low">My Rating (Low)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+    
+        <div id="book-grid">
+            <div class="empty-state">
+                <h2>Your collection is empty</h2>
+                <p>Click "+ Add Book" to get started.</p>
+            </div>
         </div>
+    
+        <section id="pagination-controls" class="pagination-bar hidden">
+            <button id="p-first" class="p-btn" title="First Page">&laquo;</button>
+            <button id="p-prev" class="p-btn" title="Previous">&lsaquo;</button>
+    
+            <div class="p-input-wrapper">
+                <input type="number" id="p-current" value="1" min="1">
+                <span class="p-total">of <span id="p-max">1</span></span>
+            </div>
+    
+            <button id="p-next" class="p-btn" title="Next">&rsaquo;</button>
+            <button id="p-last" class="p-btn" title="Last Page">&raquo;</button>
+        </section>
+    
     </main>
 
     <div id="modal-backdrop" class="modal-backdrop hidden">

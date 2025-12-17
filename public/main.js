@@ -1,10 +1,22 @@
 import * as API from "./api.js";
 import * as Parsers from "./parsers.js";
 import * as UI from "./ui.js";
+import * as State from "./state.js";
+import { initSearch } from "./search.js";
+import { initFilters } from "./filters.js";
+import { initPagination } from "./pagination.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // --- 1. INITIAL LOAD ---
-    await loadBooks();
+    // --- 1. INITIALIZATION ---
+
+    // Initialize UI Components
+    initSearch();
+    initFilters();
+    initPagination();
+
+    // Load Data & Initialize State
+    const books = await API.getBooks();
+    State.init(books);
 
     // --- 2. GLOBAL VARIABLES ---
     let activeTab = "goodreads";
@@ -50,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         grDetailedInput: document.getElementById("detailed-score-input"),
         grDetailedText: document.getElementById("gr-detailed-score-text"),
         grChoiceAwards: document.getElementById("gr-choice-awards"),
-        bulkHasAwards: document.getElementById("bulk-has-awards-check"), // Ensure this is in index.html!
+        bulkHasAwards: document.getElementById("bulk-has-awards-check"),
         userStatus: document.getElementById("user-status-select"),
         userStarted: document.getElementById("user-started-date"),
         userFinished: document.getElementById("user-finished-date"),
@@ -70,9 +82,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     els.closeModalBtn.onclick = () => els.modalBackdrop.classList.add("hidden");
 
     // Toggle Rating Modal
-    els.closeRatingBtn.onclick = () => {
+    els.closeRatingBtn.onclick = async () => {
         els.ratingBackdrop.classList.add("hidden");
-        loadBooks(); // Refresh grid
+        // Refresh grid via State after closing rating modal
+        const updatedBooks = await API.getBooks();
+        State.init(updatedBooks);
     };
 
     // Tabs
@@ -96,11 +110,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (activeTab === "storygraph") {
             // Hide Goodreads-specific fields
             els.bulkSeriesWrapper.classList.add("hidden");
-            els.bulkAwardsWrapper.classList.add("hidden"); // Hide Awards
+            if (els.bulkAwardsWrapper)
+                els.bulkAwardsWrapper.classList.add("hidden");
         } else {
             // Show Goodreads-specific fields
             els.bulkSeriesWrapper.classList.remove("hidden");
-            els.bulkAwardsWrapper.classList.remove("hidden"); // Show Awards
+            if (els.bulkAwardsWrapper)
+                els.bulkAwardsWrapper.classList.remove("hidden");
         }
     };
     els.openBulkGr.onclick = openBulk;
@@ -204,6 +220,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             els.rateModalTitle.innerText = result.title;
             resetStars();
             els.ratingBackdrop.classList.remove("hidden");
+
+            // Refresh Grid Background State
+            const updatedBooks = await API.getBooks();
+            State.init(updatedBooks);
         } else {
             alert("Save failed.");
         }
@@ -248,6 +268,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await API.saveUserScore(currentSavedBookId, currentRating);
         updateStars(currentRating);
+
+        // Refresh state to update sorts
+        const updatedBooks = await API.getBooks();
+        State.init(updatedBooks);
     };
 
     function updateStars(val) {
@@ -315,10 +339,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- HELPERS ---
-    async function loadBooks() {
-        const books = await API.getBooks();
-        UI.renderBookGrid(books);
-    }
 
     function scrapeGoodreadsData() {
         const detailedText = els.grDetailedCheck.checked
@@ -347,7 +367,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ratings: document.getElementById("gr-ratings").value,
             reviews: document.getElementById("gr-reviews").value,
             detailedScore: Parsers.parseDetailedScore(detailedText),
-            goodreadsChoiceAward: choiceAwards, // Added
+            goodreadsChoiceAward: choiceAwards,
             synopsis: document
                 .getElementById("gr-synopsis")
                 .value.split("\n\n"),

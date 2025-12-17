@@ -5,6 +5,7 @@ const fs = require("fs");
 const multer = require("multer");
 const https = require("https");
 const crypto = require("crypto");
+const readability = require("./readability");
 
 const PORT = 3000;
 
@@ -32,6 +33,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// Configure Multer for EPUBs (Temp storage)
+const epubStorage = multer.diskStorage({
+    destination: (req, file, cb) => { cb(null, 'public/assets/covers/'); }, // Using covers dir as temp is fine, or create 'temp/'
+    filename: (req, file, cb) => { cb(null, `temp-${Date.now()}.epub`); }
+});
+const uploadEpub = multer({ storage: epubStorage });
+
 app.use(express.static("public"));
 app.use(express.json({ limit: "10mb" }));
 
@@ -45,7 +53,7 @@ function saveUserData(data) {
 
 // --- ROUTES ---
 
-// 1. GET ALL BOOKS
+// 1. GET ALL BOOKS (Fixed: Merges User Data for Favorites/Sorts)
 app.get("/books", (req, res) => {
     const booksPath = path.join(__dirname, "data", "books.jsonl");
     if (!fs.existsSync(booksPath)) return res.json([]);
@@ -54,10 +62,33 @@ app.get("/books", (req, res) => {
     const fileStream = fs.readFileSync(booksPath, "utf-8");
     const lines = fileStream.split("\n");
 
+    // Get User Data to merge
+    const userData = getUserData();
+    const library = userData.library || userData.scores || [];
+
     lines.forEach((line) => {
         if (line.trim()) {
             try {
-                books.push(JSON.parse(line));
+                const book = JSON.parse(line);
+                // Find matching user entry
+                const userEntry = library.find(
+                    (entry) => entry.bookId === book.id
+                );
+
+                // Merge user-specific fields
+                if (userEntry) {
+                    book.isFavorite = userEntry.isFavorite || false;
+                    book.userScore = userEntry.score || 0;
+                    book.userStatus = userEntry.status || "Want to Read";
+                    book.started = userEntry.started || "";
+                    book.finished = userEntry.finished || "";
+                } else {
+                    book.isFavorite = false;
+                    book.userScore = 0;
+                    book.userStatus = "Want to Read";
+                }
+
+                books.push(book);
             } catch (err) {
                 console.error(err);
             }
@@ -66,7 +97,7 @@ app.get("/books", (req, res) => {
     res.json(books);
 });
 
-// 2. GET SINGLE BOOK + USER DATA
+// 2. GET SINGLE BOOK + USER DATA (Fixed: Returns Dates)
 app.get("/book/:id", (req, res) => {
     const bookId = req.params.id;
     const booksPath = path.join(__dirname, "data", "books.jsonl");
@@ -88,7 +119,6 @@ app.get("/book/:id", (req, res) => {
 
     // Merge User Data
     const userData = getUserData();
-    // Support legacy "scores" key if it exists, otherwise "library"
     const library = userData.library || userData.scores || [];
     const entry = library.find((s) => s.bookId === bookId) || {};
 
@@ -97,6 +127,9 @@ app.get("/book/:id", (req, res) => {
         userScore: entry.score || 0,
         userStatus: entry.status || "Want to Read",
         isFavorite: entry.isFavorite || false,
+        // Explicitly return dates
+        started: entry.started || "",
+        finished: entry.finished || "",
     });
 });
 
@@ -209,16 +242,45 @@ app.post("/save-book", async (req, res) => {
     );
 });
 
-// 5. USER ACTIONS (Score, Status, Favorite, Delete)
-app.post("/save-dates", (req, res) => {
-    const { bookId, started, finished } = req.body;
-    updateUserEntry(bookId, (entry) => {
-        if (started !== undefined) entry.started = started;
-        if (finished !== undefined) entry.finished = finished;
-    });
-    res.json({ success: true });
+// NEW: Calculate Readability
+app.post('/calculate-readability', uploadEpub.single('epubFile'), async (req, res) => {
+    const { bookId } = req.body;
+    if (!req.file || !bookId) return res.status(400).json({ success: false, message: "Missing file or ID" });
+
+    const filePath = req.file.path;
+
+    try {
+        // 1. Analyze
+        const scores = await readability.analyzeEpub(filePath);
+
+        // 2. Update books.jsonl
+        const booksPath = path.join(__dirname, 'data', 'books.jsonl');
+        if (fs.existsSync(booksPath)) {
+            const lines = fs.readFileSync(booksPath, 'utf-8').split('\n');
+            const newContent = lines.map(line => {
+                if (!line.trim()) return line;
+                const book = JSON.parse(line);
+                if (book.id === bookId) {
+                    book.readability = scores; // Add scores to book
+                }
+                return JSON.stringify(book);
+            }).join('\n');
+            fs.writeFileSync(booksPath, newContent);
+        }
+
+        // 3. Clean up
+        fs.unlink(filePath, () => {});
+
+        res.json({ success: true, readability: scores });
+
+    } catch (err) {
+        console.error("Readability Error:", err);
+        fs.unlink(filePath, () => {});
+        res.status(500).json({ success: false, message: "Analysis failed" });
+    }
 });
 
+// 5. USER ACTIONS (Score, Status, Favorite, Delete)
 function updateUserEntry(bookId, callback) {
     const data = JSON.parse(fs.readFileSync(userJsonPath, "utf-8"));
     if (!data.library) {
@@ -237,11 +299,20 @@ function updateUserEntry(bookId, callback) {
     fs.writeFileSync(userJsonPath, JSON.stringify(data, null, 2));
 }
 
+app.post("/save-dates", (req, res) => {
+    const { bookId, started, finished } = req.body;
+    updateUserEntry(bookId, (entry) => {
+        // Allow saving empty string to clear date
+        if (started !== undefined) entry.started = started;
+        if (finished !== undefined) entry.finished = finished;
+    });
+    res.json({ success: true });
+});
+
 app.post("/save-score", (req, res) => {
     const { bookId, score } = req.body;
     updateUserEntry(bookId, (entry) => {
         entry.score = score;
-        // Auto-set status to 'Finished' if rating is set and status is default
         if (score > 0 && (!entry.status || entry.status === "Want to Read")) {
             entry.status = "Finished";
         }
